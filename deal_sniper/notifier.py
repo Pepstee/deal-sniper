@@ -1,13 +1,13 @@
-from typing import Protocol
+from abc import ABC, abstractmethod
 
 from deal_sniper.listing import Listing
 
 
-class Notifier(Protocol):
-    def notify(self, listing: Listing, alert_text: str) -> None:
-        ...
+class Notifier(ABC):
+    @abstractmethod
+    def notify(self, listing: Listing, alert_text: str) -> None: ...
 
 
-class ConsoleNotifier:
+class ConsoleNotifier(Notifier):
     def notify(self, listing: Listing, alert_text: str) -> None:
-        print(alert_text)
+        print(f"ALERT: {alert_text}")
