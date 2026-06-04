@@ -1,0 +1,26 @@
+[
+  {
+    "id": "1",
+    "title": "Vintage Leather Sofa",
+    "price": 149.99,
+    "url": "https://example.com/item/1"
+  },
+  {
+    "id": "2",
+    "title": "Standing Desk Lamp",
+    "price": 49.00,
+    "url": "https://example.com/item/2"
+  },
+  {
+    "id": "3",
+    "title": "Trek Mountain Bike 2021",
+    "price": 299.50,
+    "url": "https://example.com/item/3"
+  },
+  {
+    "id": "4",
+    "title": "Cast Iron Skillet 12in",
+    "price": 25.00,
+    "url": "https://example.com/item/4"
+  }
+]

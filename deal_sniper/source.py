@@ -1,8 +1,9 @@
-from typing import Protocol
+from abc import ABC, abstractmethod
 
-from deal_sniper.listing import Listing
+from deal_sniper.models import Listing
 
 
-class Source(Protocol):
+class Source(ABC):
+    @abstractmethod
     def fetch(self, query: str) -> list[Listing]:
         ...

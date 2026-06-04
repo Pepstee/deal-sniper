@@ -21,10 +21,10 @@ class RulesEngine:
             if not all(kw.lower() in title_lower for kw in cfg.keywords):
                 return False
 
-        if cfg.percent_below_median:
+        if cfg.percent_below:
             median = self._tracker.median()
             if median is not None:
-                threshold = median * (1 - cfg.percent_below_median / 100)
+                threshold = median * (1 - cfg.percent_below / 100)
                 if listing.price > threshold:
                     return False
 
