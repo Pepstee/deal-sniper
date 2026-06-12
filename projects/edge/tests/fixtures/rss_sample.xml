@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Tech News Sample</title>
+    <link>https://example.com/feed</link>
+    <description>Sample RSS feed for situation_monitor tests</description>
+    <item>
+      <title>AI Breakthrough Promises Faster Language Models</title>
+      <link>https://example.com/ai-breakthrough</link>
+      <description>Researchers at a leading lab have discovered a new training technique that cuts compute costs by 40% while maintaining quality. The approach uses a novel sparse-attention mechanism.</description>
+      <pubDate>Thu, 12 Jun 2026 10:00:00 +0000</pubDate>
+      <guid>https://example.com/ai-breakthrough</guid>
+    </item>
+    <item>
+      <title>Critical Zero-Day Found in Popular Web Framework</title>
+      <link>https://example.com/security-zerodav</link>
+      <description>A critical remote code execution vulnerability has been discovered in a widely used web framework. Patch version 4.2.1 addresses the issue; all users should upgrade immediately.</description>
+      <pubDate>Thu, 12 Jun 2026 09:30:00 +0000</pubDate>
+      <guid>https://example.com/security-zerodav</guid>
+    </item>
+    <item>
+      <title>Startup Raises $50M Series B for Autonomous Agents Platform</title>
+      <link>https://example.com/startup-raise</link>
+      <description>An autonomous agents startup announced a $50 million Series B round led by prominent VCs, with plans to expand its enterprise offering and hire 100 engineers this year.</description>
+      <pubDate>Thu, 12 Jun 2026 08:00:00 +0000</pubDate>
+      <guid>https://example.com/startup-raise</guid>
+    </item>
+  </channel>
+</rss>
