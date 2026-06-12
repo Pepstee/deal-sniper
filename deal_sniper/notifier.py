@@ -11,6 +11,3 @@ class Notifier(ABC):
 class ConsoleNotifier(Notifier):
     def alert(self, listing: Listing) -> None:
         print(f"DEAL ALERT: {listing.title} | ${listing.price:.2f} | {listing.url}")
-
-    def notify(self, listing: Listing, alert_text: str) -> None:
-        print(alert_text)

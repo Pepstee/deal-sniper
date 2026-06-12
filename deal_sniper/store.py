@@ -24,7 +24,3 @@ class SQLiteStore:
 
     def close(self) -> None:
         self._conn.close()
-
-
-# Backward-compatible alias
-ListingStore = SQLiteStore

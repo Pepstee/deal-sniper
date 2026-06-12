@@ -266,3 +266,50 @@ class TestMultipleNotifiers:
         run_loop(source, config, store, tracker, rules, notifiers, iterations=1)
         for n in notifiers:
             assert len(n.alerted) == 1
+
+
+# ---------------------------------------------------------------------------
+# Median tracker updates
+# ---------------------------------------------------------------------------
+
+class TestTrackerUpdates:
+    def test_tracker_receives_price_for_every_listing(self):
+        prices = [10.0, 20.0, 30.0, 40.0, 50.0]
+        listings = [make_listing(f"http://ex.com/{i}", price=p) for i, p in enumerate(prices)]
+        source, config, store, tracker, rules, notifier = make_components(listings)
+        assert tracker.median("") is None
+        run_loop(source, config, store, tracker, rules, notifier, iterations=1)
+        # Median of [10,20,30,40,50] is 30
+        assert tracker.median("") == 30.0
+
+    def test_tracker_updated_even_for_already_seen_listings(self):
+        listing = make_listing("http://ex.com/seen", price=100.0)
+        source, config, store, tracker, rules, notifier = make_components([listing])
+        # First iteration: new, tracker gets the price, notifier fires.
+        # Second iteration: seen, but the tracker must still record the price.
+        run_loop(source, config, store, tracker, rules, notifier, iterations=2)
+        assert len(notifier.alerted) == 1
+        assert tracker.median("") == 100.0
+        assert len(tracker._data[""]) == 2  # both iterations added the price
+
+    def test_tracker_updated_even_for_rule_filtered_listings(self):
+        expensive = make_listing("http://ex.com/exp", price=9999.0)
+        source, config, store, tracker, rules, notifier = make_components(
+            [expensive], price_max=50.0
+        )
+        run_loop(source, config, store, tracker, rules, notifier, iterations=1)
+        assert notifier.alerted == []          # filtered by price_max
+        assert tracker.median("") == 9999.0    # but tracker was updated
+
+    def test_tracker_keyed_by_listing_query(self):
+        a = make_listing("http://ex.com/a", price=10.0, query="bikes")
+        b = make_listing("http://ex.com/b", price=500.0, query="sofas")
+        source, config, store, tracker, rules, notifier = make_components([a, b])
+        run_loop(source, config, store, tracker, rules, notifier, iterations=1)
+        assert tracker.median("bikes") == 10.0
+        assert tracker.median("sofas") == 500.0
+
+    def test_empty_source_leaves_tracker_empty(self):
+        source, config, store, tracker, rules, notifier = make_components([])
+        run_loop(source, config, store, tracker, rules, notifier, iterations=1)
+        assert tracker.median("") is None
