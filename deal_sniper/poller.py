@@ -6,13 +6,12 @@ from deal_sniper.config import Config
 from deal_sniper.median import MedianTracker
 from deal_sniper.notifier import Notifier
 from deal_sniper.rules import RulesEngine
-from deal_sniper.source import Source
-from deal_sniper.store import ListingStore
+from deal_sniper.store import SQLiteStore
 
 
 def poll_once(
-    source: Source,
-    store: ListingStore,
+    source,
+    store: SQLiteStore,
     engine: RulesEngine,
     tracker: MedianTracker,
     notifier: Notifier,
@@ -26,8 +25,8 @@ def poll_once(
                 notifier.notify(listing, alert)
 
 
-def run_loop(config: Config, source: Source, notifier: Notifier) -> None:
-    store = ListingStore(config.db_path)
+def run_loop(config: Config, source, notifier: Notifier) -> None:
+    store = SQLiteStore(config.db_path)
     tracker = MedianTracker()
     engine = RulesEngine(config, tracker)
     try:
