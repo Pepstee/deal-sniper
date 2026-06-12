@@ -7,8 +7,8 @@ from dataclasses import dataclass
 class Config:
     price_max: float
     keywords: list[str]
-    percent_below: float
-    poll_interval: int
+    below_median_pct: float
+    poll_interval_s: int
     db_path: str
 
     @classmethod
@@ -16,7 +16,7 @@ class Config:
         return cls(
             price_max=float(data["price_max"]),
             keywords=list(data["keywords"]),
-            percent_below=float(data["percent_below"]),
-            poll_interval=int(data["poll_interval"]),
+            below_median_pct=float(data["below_median_pct"]),
+            poll_interval_s=int(data["poll_interval_s"]),
             db_path=str(data["db_path"]),
         )

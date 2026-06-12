@@ -29,7 +29,7 @@ def make_config(
     return Config(
         price_max=price_max,
         keywords=keywords or [],
-        percent_below_median=percent_below_median,
+        below_median_pct=percent_below_median,
         poll_interval_s=60,
         db_path=":memory:",  # not used by these tests directly
     )
