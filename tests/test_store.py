@@ -1,5 +1,4 @@
 """ListingStore: SQLite-backed deduplication store."""
-import pytest
 
 from deal_sniper.listing import Listing
 from deal_sniper.store import ListingStore

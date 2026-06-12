@@ -1,4 +1,3 @@
-import pytest
 from deal_sniper.listing import Listing
 
 

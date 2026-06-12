@@ -1,7 +1,6 @@
 """Adversarial tests for poll_once and ConsoleNotifier."""
 from __future__ import annotations
 
-import pytest
 
 from deal_sniper.config import Config
 from deal_sniper.listing import Listing
@@ -219,11 +218,6 @@ class TestRuleMatching:
     def test_percent_below_median_filters_overpriced_after_warmup(self, tmp_path):
         """After seeing prices [100, 200], median=150; 10% below = 135 threshold.
         A listing at 140 should be rejected."""
-        # Warm up tracker first by polling cheap/expensive items
-        warmup_listings = [
-            make_listing("https://ex.com/w1", price=100.0),
-            make_listing("https://ex.com/w2", price=200.0),
-        ]
         candidate = make_listing("https://ex.com/candidate", price=140.0)
         source, store, engine, tracker, notifier = make_components(
             [], tmp_path, percent_below_median=10.0
