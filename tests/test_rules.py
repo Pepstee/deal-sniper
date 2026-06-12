@@ -1,8 +1,8 @@
 """RulesEngine: price threshold, keyword filter, percent-below-median, combined."""
 
 from deal_sniper.config import Config
-from deal_sniper.listing import Listing
-from deal_sniper.median import MedianTracker
+from deal_sniper.models import Listing
+from deal_sniper.tracker import MedianTracker
 from deal_sniper.rules import RulesEngine
 
 
@@ -27,7 +27,7 @@ def make_listing(title: str = "Widget", price: float = 50.0, url: str = "u") -> 
 def engine(config: Config, prices: list[float] | None = None) -> RulesEngine:
     tracker = MedianTracker()
     for p in (prices or []):
-        tracker.add(p)
+        tracker.update("", p)
     return RulesEngine(config, tracker)
 
 

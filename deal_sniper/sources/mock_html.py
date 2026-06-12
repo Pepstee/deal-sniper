@@ -1,7 +1,8 @@
 from html.parser import HTMLParser
 from pathlib import Path
 
-from deal_sniper.listing import Listing
+from deal_sniper.models import Listing
+from deal_sniper.source import Source
 
 
 class _ListingParser(HTMLParser):
@@ -37,7 +38,7 @@ class _ListingParser(HTMLParser):
             self._current = None
 
 
-class MockHtmlSource:
+class MockHtmlSource(Source):
     def __init__(self, path: str | Path) -> None:
         self._path = Path(path)
 

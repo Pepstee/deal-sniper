@@ -16,9 +16,9 @@ No dependencies beyond the standard library are required for the demo:
 python acceptance.py
 ```
 
-This runs two simulated poll cycles against the bundled fixture files (`fixtures/sample.html` and
-`fixtures/sample.json`) and prints any listings that fall below the configured price ceiling.  A
-non-zero exit code means the demo failed.
+This runs one simulated poll cycle against the bundled fixture file (`fixtures/sample.json`) and
+prints any listings that fall below the configured price ceiling.  A non-zero exit code means the
+demo failed.
 
 ---
 
@@ -39,10 +39,18 @@ non-zero exit code means the demo failed.
 
 ```
 pip install -e .
-deal-sniper --config config.json --source <source-name>
+deal-sniper --config config.json --source mock_json --fixture fixtures/sample.json --iterations 1
 ```
 
-`<source-name>` must match a registered `Source` implementation (see below).
+Or without installing, from the project root:
+
+```
+python -m deal_sniper --config config.json --source mock_json --fixture fixtures/sample.json --iterations 1
+```
+
+`--source` must match a registered `Source` implementation (see below); the bundled mock sources
+require `--fixture` pointing at a local data file.  Omit `--iterations` to poll forever at
+`poll_interval_s`.
 
 ---
 
@@ -51,8 +59,8 @@ deal-sniper --config config.json --source <source-name>
 | Key | Type | Description |
 |---|---|---|
 | `price_max` | float | Hard ceiling — listings above this price are ignored |
-| `keywords` | list[str] | Search terms passed to each source's `fetch()` call |
-| `percent_below_median` | float | Minimum % discount vs. the rolling median to trigger an alert (e.g. `15` = 15 % below) |
+| `keywords` | list[str] | All keywords must appear in a listing's title (case-insensitive) for it to alert |
+| `below_median_pct` | float | Minimum % discount vs. the rolling median to trigger an alert (e.g. `15` = 15 % below) |
 | `poll_interval_s` | int | Seconds between poll cycles |
 | `db_path` | str | Path to the SQLite file used to track seen listings |
 
@@ -61,8 +69,8 @@ Example:
 ```json
 {
   "price_max": 300.0,
-  "keywords": ["road bike", "fixie"],
-  "percent_below_median": 15,
+  "keywords": ["road bike"],
+  "below_median_pct": 15,
   "poll_interval_s": 300,
   "db_path": "state/seen.db"
 }
@@ -78,12 +86,13 @@ Example:
 > attribution, and data-use requirements.  The bundled sources (`MockHtmlSource`,
 > `MockJsonSource`) exist solely for local testing and use no live URLs.
 
-Implement the `Source` protocol defined in `deal_sniper/source.py`:
+Subclass the `Source` ABC defined in `deal_sniper/source.py`:
 
 ```python
-from deal_sniper.listing import Listing
+from deal_sniper.models import Listing
+from deal_sniper.source import Source
 
-class MyMarketplaceSource:
+class MyMarketplaceSource(Source):
     def fetch(self, query: str) -> list[Listing]:
         # Call the official API, parse the response, return Listing objects.
         results = my_api_client.search(query)
@@ -114,22 +123,24 @@ Register your source and pass its name to `--source` when invoking the CLI.
 
 ## Adding a custom notifier
 
-Implement the `Notifier` protocol defined in `deal_sniper/notifier.py`:
+Subclass the `Notifier` ABC defined in `deal_sniper/notifier.py`:
 
 ```python
-from deal_sniper.listing import Listing
+from deal_sniper.models import Listing
+from deal_sniper.notifier import Notifier
 
-class SlackNotifier:
+class SlackNotifier(Notifier):
     def __init__(self, webhook_url: str) -> None:
         self._webhook = webhook_url
 
-    def notify(self, listing: Listing, alert_text: str) -> None:
+    def alert(self, listing: Listing) -> None:
         import urllib.request, json
-        body = json.dumps({"text": alert_text}).encode()
+        text = f"DEAL ALERT: {listing.title} | ${listing.price:.2f} | {listing.url}"
+        body = json.dumps({"text": text}).encode()
         req = urllib.request.Request(self._webhook, data=body,
                                      headers={"Content-Type": "application/json"})
         urllib.request.urlopen(req)
 ```
 
 The built-in `ConsoleNotifier` (prints to stdout) is used by default.  Swap it out by passing your
-notifier instance to the poller at construction time.
+notifier instance (or a list of notifiers) to `run_loop`.

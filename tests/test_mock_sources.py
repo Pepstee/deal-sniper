@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from deal_sniper.listing import Listing
+from deal_sniper.models import Listing
 from deal_sniper.sources.mock_html import MockHtmlSource
 from deal_sniper.sources.mock_json import MockJsonSource
 

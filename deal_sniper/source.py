@@ -4,8 +4,7 @@ from deal_sniper.models import Listing
 
 
 class Source(ABC):
-    @abstractmethod
-    def parse_html(self, html: str) -> list[Listing]: ...
+    """A listing source: return the current listings for a query."""
 
     @abstractmethod
-    def parse_json(self, data: str) -> list[Listing]: ...
+    def fetch(self, query: str) -> list[Listing]: ...

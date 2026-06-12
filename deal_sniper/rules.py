@@ -9,14 +9,6 @@ class RulesEngine:
         self._config = config
         self._tracker = tracker
 
-    def _get_median(self, trk, query: str) -> float | None:
-        if trk is None:
-            return None
-        # Old MedianTracker (deal_sniper.median) has add(); new (tracker.py) has update().
-        if hasattr(trk, "add"):
-            return trk.median()
-        return trk.median(query)
-
     def matches(self, listing: Listing, config: Config | None = None, tracker=None) -> bool:
         cfg = config if config is not None else self._config
         trk = tracker if tracker is not None else self._tracker
@@ -30,7 +22,7 @@ class RulesEngine:
                 return False
 
         if cfg.below_median_pct:
-            med = self._get_median(trk, listing.query or "")
+            med = trk.median(listing.query or "") if trk is not None else None
             if med is not None:
                 threshold = med * (1 - cfg.below_median_pct / 100)
                 if listing.price > threshold:
