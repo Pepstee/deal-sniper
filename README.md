@@ -22,6 +22,19 @@ non-zero exit code means the demo failed.
 
 ---
 
+## Live marketplace access — official APIs only
+
+> **No scraping.** Accessing live marketplace data by scraping HTML violates the Terms of Service
+> of virtually every classified-ads platform (Craigslist, Facebook Marketplace, eBay, Gumtree,
+> etc.) and may expose you to legal risk.
+>
+> To point deal-sniper at a real site, you **must** obtain official API credentials from the
+> platform and comply with all rate-limit, attribution, and data-use requirements in their
+> developer programme.  The bundled `MockHtmlSource` and `MockJsonSource` are local stubs that
+> use no live URLs and are suitable only for testing.
+
+---
+
 ## Installing and running the CLI
 
 ```

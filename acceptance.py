@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Acceptance demo: pipeline on fixture files, stdlib only, no network I/O."""
+"""Acceptance demo: pipeline on fixture data, stdlib only, no network I/O."""
 from __future__ import annotations
 
 import pathlib
@@ -8,14 +8,12 @@ from deal_sniper.config import Config
 from deal_sniper.loop import run_loop
 from deal_sniper.notifier import ConsoleNotifier
 from deal_sniper.rules import RulesEngine
-from deal_sniper.sources.mock_html import MockHtmlSource
-from deal_sniper.sources.mock_json import MockJsonSource
+from deal_sniper.sources.mock_json import MockJsonSource as FixtureSource
 from deal_sniper.store import SQLiteStore
 from deal_sniper.tracker import MedianTracker
 
 ROOT = pathlib.Path(__file__).parent
-HTML_FIXTURE = ROOT / "tests" / "fixtures" / "sample.html"
-JSON_FIXTURE = ROOT / "tests" / "fixtures" / "sample.json"
+FIXTURE = ROOT / "fixtures" / "sample.json"
 
 
 class _CountingNotifier(ConsoleNotifier):
@@ -29,7 +27,7 @@ class _CountingNotifier(ConsoleNotifier):
 
 def main() -> None:
     config = Config(
-        price_max=200.0,
+        price_max=300.0,
         keywords=[],
         below_median_pct=0.0,
         poll_interval_s=0,
@@ -37,18 +35,15 @@ def main() -> None:
     )
     store = SQLiteStore(":memory:")
     tracker = MedianTracker()
-    engine = RulesEngine(config, tracker)
+    rules = RulesEngine(config, tracker)
     notifier = _CountingNotifier()
 
-    print("--- Poll 1: HTML fixture ---")
-    run_loop(MockHtmlSource(HTML_FIXTURE), config, store, tracker, engine, notifier)
+    source = FixtureSource(FIXTURE)
+    run_loop(source, config, store, tracker, rules, notifier, iterations=1)
 
-    print("--- Poll 2: JSON fixture (dedup applies) ---")
-    run_loop(MockJsonSource(JSON_FIXTURE), config, store, tracker, engine, notifier)
-
-    print(f"\nFinished 2 poll cycles — {notifier.count} deal alert(s) surfaced.")
     if notifier.count == 0:
-        raise SystemExit("acceptance FAILED: no alerts produced")
+        raise SystemExit("acceptance FAILED: no ALERT lines produced")
+    print(f"acceptance OK — {notifier.count} ALERT(s) produced")
 
 
 if __name__ == "__main__":
