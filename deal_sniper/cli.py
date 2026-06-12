@@ -15,13 +15,15 @@ def main() -> None:
     parser.add_argument("--config", required=True, help="Path to JSON config file")
     parser.add_argument("--source", required=True, help="Source name (e.g. mock_html, mock_json)")
     parser.add_argument("--fixture", help="Path to fixture file (HTML or JSON) for mock sources")
+    parser.add_argument("--iterations", type=int, default=None,
+                        help="Number of poll iterations (default: run forever)")
     args = parser.parse_args()
 
     cfg_data = json.loads(Path(args.config).read_text())
     config = Config.from_dict(cfg_data)
     store = SQLiteStore(config.db_path)
     tracker = MedianTracker()
-    engine = RulesEngine(config, tracker)
+    rules = RulesEngine(config, tracker)
     notifier = ConsoleNotifier()
 
     if args.fixture:
@@ -35,7 +37,7 @@ def main() -> None:
     else:
         raise SystemExit(f"No source implementation for '{args.source}' without --fixture")
 
-    run_loop(source, config, store, tracker, engine, notifier)
+    run_loop(source, config, store, tracker, rules, notifier, iterations=args.iterations)
     store.close()
 
 
