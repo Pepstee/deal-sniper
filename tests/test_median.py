@@ -1,5 +1,4 @@
 """MedianTracker: running median using two heaps."""
-import pytest
 
 from deal_sniper.median import MedianTracker
 

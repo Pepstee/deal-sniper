@@ -1,5 +1,4 @@
 """Listing model: field validation, defaults, equality — exercises deal_sniper.models directly."""
-import pytest
 
 from deal_sniper.models import Listing
 

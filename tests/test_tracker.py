@@ -1,5 +1,4 @@
 """deal_sniper.tracker.MedianTracker: per-query median, odd/even correctness, isolation."""
-import pytest
 
 from deal_sniper.tracker import MedianTracker
 

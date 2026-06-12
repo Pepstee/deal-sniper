@@ -15,8 +15,6 @@ FIXTURES = Path(__file__).parent.parent / "fixtures"
 @pytest.fixture(autouse=True)
 def no_network(monkeypatch):
     """Block any real socket creation so the tests provably never touch the network."""
-    original_init = socket.socket.__init__
-
     def _blocked(self, *args, **kwargs):
         raise RuntimeError("Live network access is forbidden in source tests")
 

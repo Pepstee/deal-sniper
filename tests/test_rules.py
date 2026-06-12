@@ -1,5 +1,4 @@
 """RulesEngine: price threshold, keyword filter, percent-below-median, combined."""
-import pytest
 
 from deal_sniper.config import Config
 from deal_sniper.listing import Listing

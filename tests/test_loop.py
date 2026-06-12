@@ -1,5 +1,4 @@
 """deal_sniper.loop.run_loop: stub source, capture notifier, dedup, rule filtering."""
-import pytest
 
 from deal_sniper.config import Config
 from deal_sniper.loop import run_loop
