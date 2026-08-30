@@ -25,3 +25,17 @@ class Config:
             min_price=float(min_price) if min_price is not None else None,
             exclude_keywords=list(data.get("exclude_keywords") or []),
         )
+
+
+def default_config() -> dict[str, object]:
+    """Return a runnable configuration using only canonical local defaults."""
+
+    return {
+        "price_max": 300.0,
+        "min_price": None,
+        "keywords": [],
+        "exclude_keywords": [],
+        "below_median_pct": 0.0,
+        "poll_interval_s": 300,
+        "db_path": "deals.db",
+    }

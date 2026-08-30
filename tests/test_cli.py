@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from deal_sniper.config import Config, default_config
+
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 
 
@@ -120,6 +122,32 @@ def _write_config(path: Path, db_path: str = ":memory:", **overrides) -> Path:
 
 
 class TestCLIIntegration:
+    def test_config_init_writes_deterministic_loadable_local_config(
+        self, capsys, tmp_path
+    ):
+        output = tmp_path / "generated.json"
+        from deal_sniper.cli import main
+
+        main(["config-init", "--output", str(output)])
+        first = output.read_bytes()
+        main(["config-init", "--output", str(output)])
+
+        assert output.read_bytes() == first
+        assert json.loads(first) == default_config()
+        assert Config.from_dict(json.loads(first)) == Config.from_dict(default_config())
+        assert capsys.readouterr().out.splitlines() == [
+            f"Config written to {output}",
+            f"Config written to {output}",
+        ]
+        assert not (tmp_path / "deals.db").exists()
+
+    def test_config_init_requires_explicit_output(self):
+        from deal_sniper.cli import main
+
+        with pytest.raises(SystemExit) as exc_info:
+            main(["config-init"])
+        assert exc_info.value.code == 2
+
     def test_main_with_json_fixture_zero_iterations(self, monkeypatch, tmp_path):
         config_file = _write_config(tmp_path)
         monkeypatch.setattr(sys, "argv", [

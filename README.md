@@ -48,6 +48,16 @@ Or without installing, from the project root:
 python -m deal_sniper --config config.json --source mock_json --fixture fixtures/sample.json --iterations 1
 ```
 
+Create a deterministic starter configuration locally:
+
+```
+deal-sniper config-init --output config.json
+```
+
+This command only writes the requested JSON file. It does not open a marketplace, create the
+SQLite seen-listing database, or make a network request. Existing legacy invocations without a
+subcommand remain supported.
+
 `--source` must match a registered `Source` implementation (see below); the bundled mock sources
 require `--fixture` pointing at a local data file.  Omit `--iterations` to poll forever at
 `poll_interval_s`.
