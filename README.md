@@ -59,7 +59,9 @@ require `--fixture` pointing at a local data file.  Omit `--iterations` to poll 
 | Key | Type | Description |
 |---|---|---|
 | `price_max` | float | Hard ceiling — listings above this price are ignored |
+| `min_price` | float, optional | Inclusive floor — listings below this price are ignored |
 | `keywords` | list[str] | All keywords must appear in a listing's title (case-insensitive) for it to alert |
+| `exclude_keywords` | list[str], optional | A listing is ignored when any keyword appears in its title (case-insensitive) |
 | `below_median_pct` | float | Minimum % discount vs. the rolling median to trigger an alert (e.g. `15` = 15 % below) |
 | `poll_interval_s` | int | Seconds between poll cycles |
 | `db_path` | str | Path to the SQLite file used to track seen listings |
@@ -69,7 +71,9 @@ Example:
 ```json
 {
   "price_max": 300.0,
+  "min_price": 50.0,
   "keywords": ["road bike"],
+  "exclude_keywords": ["broken", "parts only"],
   "below_median_pct": 15,
   "poll_interval_s": 300,
   "db_path": "state/seen.db"

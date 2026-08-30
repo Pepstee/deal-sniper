@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Acceptance demo: pipeline on fixture data, stdlib only, no network I/O."""
+
 from __future__ import annotations
 
 import pathlib
@@ -28,7 +29,9 @@ class _CountingNotifier(ConsoleNotifier):
 def main() -> None:
     config = Config(
         price_max=300.0,
+        min_price=50.0,
         keywords=[],
+        exclude_keywords=["sofa"],
         below_median_pct=0.0,
         poll_interval_s=0,
         db_path=":memory:",
@@ -41,8 +44,8 @@ def main() -> None:
     source = FixtureSource(FIXTURE)
     run_loop(source, config, store, tracker, rules, notifier, iterations=1)
 
-    if notifier.count == 0:
-        raise SystemExit("acceptance FAILED: no ALERT lines produced")
+    if notifier.count != 1:
+        raise SystemExit(f"acceptance FAILED: expected 1 ALERT, got {notifier.count}")
     print(f"acceptance OK — {notifier.count} ALERT(s) produced")
 
 

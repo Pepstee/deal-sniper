@@ -8,12 +8,16 @@ from deal_sniper.rules import RulesEngine
 
 def make_config(
     price_max: float = 0.0,
+    min_price: float | None = None,
     keywords: list[str] | None = None,
+    exclude_keywords: list[str] | None = None,
     percent_below_median: float = 0.0,
 ) -> Config:
     return Config(
         price_max=price_max,
+        min_price=min_price,
         keywords=keywords or [],
+        exclude_keywords=exclude_keywords or [],
         below_median_pct=percent_below_median,
         poll_interval_s=60,
         db_path=":memory:",
@@ -26,7 +30,7 @@ def make_listing(title: str = "Widget", price: float = 50.0, url: str = "u") -> 
 
 def engine(config: Config, prices: list[float] | None = None) -> RulesEngine:
     tracker = MedianTracker()
-    for p in (prices or []):
+    for p in prices or []:
         tracker.update("", p)
     return RulesEngine(config, tracker)
 
@@ -34,6 +38,7 @@ def engine(config: Config, prices: list[float] | None = None) -> RulesEngine:
 # ---------------------------------------------------------------------------
 # Price threshold
 # ---------------------------------------------------------------------------
+
 
 class TestPriceThreshold:
     def test_price_below_max_passes(self):
@@ -57,10 +62,34 @@ class TestPriceThreshold:
         e = engine(make_config(price_max=50.0))
         assert e.matches(make_listing(price=0.0)) is True
 
+    def test_price_above_min_passes(self):
+        e = engine(make_config(min_price=50.0))
+        assert e.matches(make_listing(price=50.01)) is True
+
+    def test_price_equal_to_min_passes(self):
+        e = engine(make_config(min_price=50.0))
+        assert e.matches(make_listing(price=50.0)) is True
+
+    def test_price_below_min_fails(self):
+        e = engine(make_config(min_price=50.0))
+        assert e.matches(make_listing(price=49.99)) is False
+
+    def test_no_min_price_skips_check(self):
+        e = engine(make_config(min_price=None))
+        assert e.matches(make_listing(price=0.0)) is True
+
+    def test_min_and_max_form_inclusive_range(self):
+        e = engine(make_config(min_price=50.0, price_max=200.0))
+        assert e.matches(make_listing(price=50.0)) is True
+        assert e.matches(make_listing(price=200.0)) is True
+        assert e.matches(make_listing(price=49.99)) is False
+        assert e.matches(make_listing(price=200.01)) is False
+
 
 # ---------------------------------------------------------------------------
 # Keyword filter
 # ---------------------------------------------------------------------------
+
 
 class TestKeywordFilter:
     def test_all_keywords_present_passes(self):
@@ -92,10 +121,69 @@ class TestKeywordFilter:
         e = engine(make_config(keywords=["bike"]))
         assert e.matches(make_listing(title="biker jacket")) is True
 
+    def test_excluded_keyword_absent_passes(self):
+        e = engine(make_config(exclude_keywords=["broken"]))
+        assert e.matches(make_listing(title="Nice bike")) is True
+
+    def test_excluded_keyword_present_fails(self):
+        e = engine(make_config(exclude_keywords=["broken"]))
+        assert e.matches(make_listing(title="Broken bike")) is False
+
+    def test_excluded_keyword_check_is_case_insensitive(self):
+        e = engine(make_config(exclude_keywords=["BROKEN"]))
+        assert e.matches(make_listing(title="broken bike")) is False
+
+    def test_any_excluded_keyword_rejects(self):
+        e = engine(make_config(exclude_keywords=["broken", "damaged"]))
+        assert e.matches(make_listing(title="Damaged bike")) is False
+
+    def test_empty_excluded_keywords_skip_check(self):
+        e = engine(make_config(exclude_keywords=[]))
+        assert e.matches(make_listing(title="broken damaged junk")) is True
+
+    def test_required_keyword_passes_but_excluded_keyword_blocks(self):
+        e = engine(make_config(keywords=["bike"], exclude_keywords=["broken"]))
+        assert e.matches(make_listing(title="Broken Bike")) is False
+        assert e.matches(make_listing(title="Nice Bike")) is True
+
+
+class TestConfigOptionalFilters:
+    @staticmethod
+    def legacy_data() -> dict:
+        return {
+            "price_max": 300.0,
+            "keywords": [],
+            "below_median_pct": 0.0,
+            "poll_interval_s": 0,
+            "db_path": ":memory:",
+        }
+
+    def test_legacy_config_defaults_optional_filters(self):
+        config = Config.from_dict(self.legacy_data())
+        assert config.min_price is None
+        assert config.exclude_keywords == []
+
+    def test_optional_filters_are_loaded_and_copied(self):
+        data = self.legacy_data()
+        excluded = ["broken"]
+        data.update({"min_price": "50.0", "exclude_keywords": excluded})
+        config = Config.from_dict(data)
+        excluded.append("damaged")
+        assert config.min_price == 50.0
+        assert config.exclude_keywords == ["broken"]
+
+    def test_null_optional_filters_use_defaults(self):
+        data = self.legacy_data()
+        data.update({"min_price": None, "exclude_keywords": None})
+        config = Config.from_dict(data)
+        assert config.min_price is None
+        assert config.exclude_keywords == []
+
 
 # ---------------------------------------------------------------------------
 # Percent-below-median
 # ---------------------------------------------------------------------------
+
 
 class TestPercentBelowMedian:
     def test_price_below_threshold_passes(self):
@@ -138,6 +226,7 @@ class TestPercentBelowMedian:
 # ---------------------------------------------------------------------------
 # Combined multi-rule
 # ---------------------------------------------------------------------------
+
 
 class TestCombinedRules:
     def _engine(self):

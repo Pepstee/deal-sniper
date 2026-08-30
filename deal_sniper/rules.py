@@ -16,10 +16,18 @@ class RulesEngine:
         if cfg.price_max and listing.price > cfg.price_max:
             return False
 
-        if cfg.keywords:
+        if cfg.min_price is not None and listing.price < cfg.min_price:
+            return False
+
+        if cfg.keywords or cfg.exclude_keywords:
             title_lower = listing.title.lower()
+
+        if cfg.keywords:
             if not all(kw.lower() in title_lower for kw in cfg.keywords):
                 return False
+
+        if any(kw.lower() in title_lower for kw in cfg.exclude_keywords):
+            return False
 
         if cfg.below_median_pct:
             med = trk.median(listing.query or "") if trk is not None else None

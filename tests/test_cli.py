@@ -105,7 +105,7 @@ class TestRequiredArgs:
 # Integration: main() with real files, zero iterations (no blocking sleep)
 # ---------------------------------------------------------------------------
 
-def _write_config(path: Path, db_path: str = ":memory:") -> Path:
+def _write_config(path: Path, db_path: str = ":memory:", **overrides) -> Path:
     data = {
         "price_max": 300.0,
         "keywords": [],
@@ -113,6 +113,7 @@ def _write_config(path: Path, db_path: str = ":memory:") -> Path:
         "poll_interval_s": 0,
         "db_path": db_path,
     }
+    data.update(overrides)
     config_file = path / "config.json"
     config_file.write_text(json.dumps(data))
     return config_file
@@ -154,6 +155,29 @@ class TestCLIIntegration:
         ])
         from deal_sniper.cli import main
         main()
+
+    def test_main_applies_optional_filters_to_offline_fixture(
+        self, capsys, monkeypatch, tmp_path
+    ):
+        config_file = _write_config(
+            tmp_path,
+            min_price=50.0,
+            exclude_keywords=["SOFA"],
+        )
+        monkeypatch.setattr(sys, "argv", [
+            "deal-sniper",
+            "--config", str(config_file),
+            "--source", "mock_json",
+            "--fixture", str(FIXTURES / "sample.json"),
+            "--iterations", "1",
+        ])
+        from deal_sniper.cli import main
+        main()
+        output = capsys.readouterr().out
+        assert "Trek Mountain Bike 2021" in output
+        assert "Vintage Leather Sofa" not in output
+        assert "Standing Desk Lamp" not in output
+        assert "Cast Iron Skillet 12in" not in output
 
     def test_main_without_fixture_raises_systemexit(self, monkeypatch, tmp_path):
         config_file = _write_config(tmp_path)
