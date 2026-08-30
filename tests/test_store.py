@@ -88,6 +88,35 @@ class TestPersistence:
             assert s2.is_new(make_listing(f"https://ex.com/{i}")) is False
 
 
+class TestListSeenUrls:
+    def test_returns_unique_urls_in_stable_order(self, tmp_path):
+        store = SQLiteStore(tmp_path / "store.db")
+        for url in (
+            "https://ex.com/z-last",
+            "https://ex.com/a-first",
+            "https://ex.com/z-last",
+        ):
+            store.mark_seen(make_listing(url))
+
+        assert store.list_seen_urls() == [
+            "https://ex.com/a-first",
+            "https://ex.com/z-last",
+        ]
+
+    def test_empty_store_returns_empty_list(self, tmp_path):
+        store = SQLiteStore(tmp_path / "store.db")
+        assert store.list_seen_urls() == []
+
+    def test_urls_survive_reopen_for_enumeration(self, tmp_path):
+        db = tmp_path / "store.db"
+        first = SQLiteStore(db)
+        first.mark_seen(make_listing("https://ex.com/persist"))
+        first.close()
+
+        second = SQLiteStore(db)
+        assert second.list_seen_urls() == ["https://ex.com/persist"]
+
+
 class TestEdgeCases:
     def test_empty_string_url(self, tmp_path):
         store = SQLiteStore(tmp_path / "store.db")

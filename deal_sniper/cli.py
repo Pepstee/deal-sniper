@@ -23,10 +23,36 @@ def _run_config_init(arguments: list[str]) -> None:
     print(f"Config written to {output}")
 
 
+def _run_list_seen(arguments: list[str]) -> None:
+    parser = argparse.ArgumentParser(
+        prog="deal-sniper list-seen",
+        description="Print persisted seen listing URLs",
+    )
+    parser.add_argument("--config", required=True, help="Path to JSON config file")
+    args = parser.parse_args(arguments)
+
+    try:
+        cfg_data = json.loads(Path(args.config).read_text(encoding="utf-8"))
+        config = Config.from_dict(cfg_data)
+    except (OSError, TypeError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+    store = SQLiteStore(config.db_path)
+    try:
+        for url in store.list_seen_urls():
+            print(url)
+    finally:
+        store.close()
+
+
 def main(argv: list[str] | None = None) -> None:
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments[:1] == ["config-init"]:
         _run_config_init(arguments[1:])
+        return
+    if arguments[:1] == ["list-seen"]:
+        _run_list_seen(arguments[1:])
         return
 
     parser = argparse.ArgumentParser(description="Deal Sniper — find below-median listings")

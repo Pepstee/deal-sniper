@@ -148,6 +148,48 @@ class TestCLIIntegration:
             main(["config-init"])
         assert exc_info.value.code == 2
 
+    def test_list_seen_prints_stored_urls_in_stable_order(self, capsys, tmp_path):
+        from deal_sniper.cli import main
+        from deal_sniper.models import Listing
+        from deal_sniper.store import SQLiteStore
+
+        db = tmp_path / "seen.db"
+        store = SQLiteStore(db)
+        for url in ("https://ex.com/z", "https://ex.com/a"):
+            store.mark_seen(Listing(title="T", price=1.0, url=url, source="test"))
+        store.close()
+        config_file = _write_config(tmp_path, db_path=str(db))
+
+        main(["list-seen", "--config", str(config_file)])
+
+        assert capsys.readouterr().out.splitlines() == [
+            "https://ex.com/a",
+            "https://ex.com/z",
+        ]
+
+    def test_list_seen_empty_store_prints_nothing(self, capsys, tmp_path):
+        from deal_sniper.cli import main
+
+        config_file = _write_config(tmp_path, db_path=str(tmp_path / "empty.db"))
+        main(["list-seen", "--config", str(config_file)])
+        assert capsys.readouterr().out == ""
+
+    def test_list_seen_bad_config_exits_one_on_stderr(self, capsys, tmp_path):
+        from deal_sniper.cli import main
+
+        with pytest.raises(SystemExit) as exc_info:
+            main(["list-seen", "--config", str(tmp_path / "missing.json")])
+
+        assert exc_info.value.code == 1
+        assert capsys.readouterr().err.startswith("Error: ")
+
+    def test_list_seen_requires_config(self):
+        from deal_sniper.cli import main
+
+        with pytest.raises(SystemExit) as exc_info:
+            main(["list-seen"])
+        assert exc_info.value.code == 2
+
     def test_main_with_json_fixture_zero_iterations(self, monkeypatch, tmp_path):
         config_file = _write_config(tmp_path)
         monkeypatch.setattr(sys, "argv", [

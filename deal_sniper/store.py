@@ -22,5 +22,11 @@ class SQLiteStore:
         )
         self._conn.commit()
 
+    def list_seen_urls(self) -> list[str]:
+        """Return every persisted deduplication identity in stable order."""
+
+        rows = self._conn.execute("SELECT url FROM seen_urls ORDER BY url").fetchall()
+        return [row[0] for row in rows]
+
     def close(self) -> None:
         self._conn.close()

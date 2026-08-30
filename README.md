@@ -58,6 +58,14 @@ This command only writes the requested JSON file. It does not open a marketplace
 SQLite seen-listing database, or make a network request. Existing legacy invocations without a
 subcommand remain supported.
 
+List the persisted seen listing identities from the configured SQLite database:
+
+```
+deal-sniper list-seen --config config.json
+```
+
+The command prints one URL per line in stable lexical order and performs no source fetch.
+
 `--source` must match a registered `Source` implementation (see below); the bundled mock sources
 require `--fixture` pointing at a local data file.  Omit `--iterations` to poll forever at
 `poll_interval_s`.
