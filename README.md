@@ -1,5 +1,15 @@
 # deal-sniper
 
+## ArtVault installation
+
+The working source is this workspace. The installed project interpreter is `../.venv/bin/python`;
+from this workspace run `../.venv/bin/python acceptance.py` for the offline demo. The installed CLI
+is `../.venv/bin/deal-sniper`. The sealed baseline is
+`../releases/4709347d0f75b8aff008532c023ea7b18445970f`. All 245 Deal Sniper tests passed on both Mac
+and Linux, and the installed CLI passed overlapping-query isolation, restart deduplication and
+listing-metadata inspection. The historical `projects/edge` is retained but not installed and is not
+included in these project tests. No live marketplace or external notifications were invoked.
+
 Polls classified listing sources and alerts you when a listing's price is meaningfully below the
 median for its category — a "deal sniper" for secondhand marketplaces.
 
