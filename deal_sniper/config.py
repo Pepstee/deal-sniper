@@ -13,6 +13,18 @@ class Config:
     min_price: float | None = None
     exclude_keywords: list[str] = field(default_factory=list)
 
+    keyword_mode: str = "all"
+    median_mode: str = "sequential"
+    deduplicate_observations: bool = False
+
+    def __post_init__(self) -> None:
+        if self.keyword_mode not in {"all", "any"}:
+            raise ValueError("keyword_mode must be all or any")
+        if self.median_mode not in {"sequential", "batch"}:
+            raise ValueError("median_mode must be sequential or batch")
+        if not isinstance(self.deduplicate_observations, bool):
+            raise ValueError("deduplicate_observations must be boolean")
+
     @classmethod
     def from_dict(cls, data: dict) -> Config:
         min_price = data.get("min_price")
@@ -24,6 +36,9 @@ class Config:
             db_path=str(data["db_path"]),
             min_price=float(min_price) if min_price is not None else None,
             exclude_keywords=list(data.get("exclude_keywords") or []),
+            keyword_mode=data.get("keyword_mode", "all"),
+            median_mode=data.get("median_mode", "sequential"),
+            deduplicate_observations=data.get("deduplicate_observations", False),
         )
 
 

@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "deal-sniper"
@@ -14,3 +14,7 @@ deal-sniper = "deal_sniper.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["deal_sniper*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

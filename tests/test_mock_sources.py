@@ -202,3 +202,63 @@ class TestMockJsonSource:
         f.write_text("[]")
         source = MockJsonSource(f)
         assert source.fetch("q") == []
+
+
+def test_recovered_html_formats_and_malformed_rows():
+    from deal_sniper.sources.mock_html import parse_html
+    raw = """
+    <li class="listing featured" data-url="/a" data-price="$1,200"><span class="title">Road <b>bike</b></span></li>
+    <div class="listing" data-id="d"><div><h2 class="listing-title">Desk</h2></div><span class="listing-price">$200</span><a class="listing-url" href="/b">Open</a></div>
+    <tr class="listing" data-source="table"><td class="title">Chair</td><td class="price">30</td><td class="url">/c</td></tr>
+    <li class="listing" data-url="/bad" data-price="oops"></li>
+    <li class="listing" data-url="/last" data-price="4"></li>
+    """
+    rows = parse_html(raw, "furniture")
+    assert [(r.url, r.price) for r in rows] == [("/a", 1200), ("/b", 200), ("/c", 30), ("/last", 4)]
+    assert rows[0].title == "Road bike"
+    assert rows[1].extra["id"] == "d"
+    assert rows[2].source == "table"
+    assert all(r.query == "furniture" for r in rows)
+
+
+def test_recovered_json_keeps_valid_rows_and_metadata():
+    from deal_sniper.sources.mock_json import parse_json
+    item = {"title": "Bike", "price": "$1,200", "url": "/bike", "id": "b", "source": "donor", "timestamp": "2026-01-01", "raw": "original"}
+    rows = parse_json(json.dumps([None, {"price": 2}, item, {**item, "price": "NaN"}, {**item, "price": None}]), "bikes")
+    assert len(rows) == 1
+    assert rows[0].extra == item
+    assert rows[0].query == "bikes"
+    assert rows[0].source == "donor"
+    assert parse_json(json.dumps(item))[0].price == 1200
+    with pytest.raises(ValueError):
+        parse_json("not json")
+
+
+def test_parsed_donor_metadata_survives_store_restart(tmp_path):
+    from datetime import datetime
+    from deal_sniper.sources.mock_json import parse_json
+    from deal_sniper.sources.mock_html import parse_html
+    from deal_sniper.store import SQLiteStore
+
+    payload = {"title": "Bike", "price": 90, "url": "/bike", "id": "donor-7", "source": "donor", "timestamp": "2026-01-01T12:00:00+00:00", "raw": {"condition": "used"}, "category": "bicycles"}
+    rows = parse_json(json.dumps([payload, {**payload, "timestamp": []}]), "bikes")
+    assert len(rows) == 1
+    html = '<div class="listing" data-id="html-8"><h2 class="listing-title">Desk</h2><span class="listing-price">40</span><a class="listing-url" href="/desk">open</a></div>'
+    rows += parse_html(html)
+    path = tmp_path / "captured.db"
+    store = SQLiteStore(path)
+    for row in rows:
+        store.mark_seen(row)
+    store.close()
+    reopened = SQLiteStore(path)
+    try:
+        recovered = reopened.get_all()
+        assert [row.to_dict() for row in recovered] == [row.to_dict() for row in rows]
+        assert recovered[0].timestamp == datetime.fromisoformat(payload["timestamp"])
+        assert recovered[0].raw == {"condition": "used"}
+        assert recovered[0].extra["category"] == "bicycles"
+        assert recovered[0].id == "donor-7"
+        assert recovered[1].id == "html-8"
+        assert recovered[1].timestamp is None
+    finally:
+        reopened.close()

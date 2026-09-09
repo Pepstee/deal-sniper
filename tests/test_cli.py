@@ -259,3 +259,55 @@ class TestCLIIntegration:
         from deal_sniper.cli import main
         with pytest.raises(SystemExit):
             main()
+
+
+def test_multiple_queries_are_polled_without_starvation(monkeypatch, tmp_path):
+    from deal_sniper import cli
+    from deal_sniper.models import Listing
+    calls = []
+    class Source:
+        def fetch(self, query):
+            calls.append(query)
+            return [Listing(query, 10, "https://example.test/" + query, "synthetic")]
+    monkeypatch.setattr(cli, "_make_source", lambda *args: Source())
+    data = {"db_path": str(tmp_path / "queries.db"), "queries": [
+        {"name": name, "search_term": name, "source_type": "local", "source_path": "unused", "poll_interval_sec": 0}
+        for name in ["bicycle", "camera"]]}
+    assert cli._run_queries(data, iterations=2) == 2
+    assert calls == ["bicycle", "camera", "bicycle", "camera"]
+    from deal_sniper.store import SQLiteStore
+    store = SQLiteStore(data["db_path"])
+    assert {item.query for item in store.get_all()} == {"bicycle", "camera"}
+    store.close()
+
+
+def test_cli_full_listing_inspection_preserves_metadata(tmp_path, capsys):
+    import json
+    from deal_sniper import cli
+    from deal_sniper.config import default_config
+    from deal_sniper.models import Listing
+    from deal_sniper.store import SQLiteStore
+    cfg = default_config()
+    cfg["db_path"] = str(tmp_path / "full.db")
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps(cfg))
+    store = SQLiteStore(cfg["db_path"])
+    store.mark_seen(Listing("Synthetic", 12, "https://example.test/one", "test", id="original-1", raw={"field": "value"}))
+    store.close()
+    cli.main(["list-listings", "--config", str(path)])
+    rows = json.loads(capsys.readouterr().out)
+    assert rows[0]["id"] == "original-1" and rows[0]["raw"] == {"field": "value"}
+
+
+def test_one_query_rejection_does_not_suppress_another_query(monkeypatch, tmp_path):
+    from deal_sniper import cli
+    from deal_sniper.models import Listing
+    class Source:
+        def fetch(self, query):
+            return [Listing("camera", 50, "https://example.test/shared", "synthetic")]
+    monkeypatch.setattr(cli, "_make_source", lambda *args: Source())
+    data = {"db_path": str(tmp_path / "overlap.db"), "queries": [
+        {"name": name, "source_type": "local", "source_path": "unused", "poll_interval_sec": 0,
+         "rules": {"include_keywords": [name]}} for name in ["bicycle", "camera"]]}
+    assert cli._run_queries(data, iterations=2) == 1
+    assert cli._run_queries(data, iterations=1) == 0

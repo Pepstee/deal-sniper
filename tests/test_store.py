@@ -138,3 +138,141 @@ class TestEdgeCases:
         listing = make_listing("https://ex.com/x")
         s1.mark_seen(listing)
         assert s2.is_new(listing) is True
+
+
+class TestFullRecords:
+    def test_complete_metadata_survives_restart(self, tmp_path):
+        from datetime import datetime, timezone
+
+        path = tmp_path / "records.db"
+        record = Listing(
+            "Bike", 29.95, "https://example.com/1", "test", "bikes", {"images": ["one"]},
+            id="item-1", timestamp=datetime(2026, 6, 1, 12, tzinfo=timezone.utc),
+            raw={"seller": "Example"},
+        )
+        first = SQLiteStore(path)
+        first.mark_seen(record)
+        first.close()
+        second = SQLiteStore(path)
+        try:
+            assert second.get_all() == [record]
+            assert not second.is_new(record)
+        finally:
+            second.close()
+
+    def test_additive_migration_keeps_legacy_urls_without_inventing_records(self, tmp_path):
+        import sqlite3
+
+        path = tmp_path / "legacy.db"
+        with sqlite3.connect(path) as conn:
+            conn.execute("CREATE TABLE seen_urls (url TEXT PRIMARY KEY)")
+            conn.execute("INSERT INTO seen_urls VALUES (?)", ("https://example.com/old",))
+        store = SQLiteStore(path)
+        assert store.list_seen_urls() == ["https://example.com/old"]
+        assert store.get_all() == []
+        assert not store.is_new(make_listing("https://example.com/old"))
+        new = make_listing("https://example.com/new")
+        store.mark_seen(new)
+        store.close()
+        reopened = SQLiteStore(path)
+        try:
+            assert reopened.list_seen_urls() == [new.url, "https://example.com/old"]
+            assert reopened.get_all() == [new]
+        finally:
+            reopened.close()
+
+    def test_repeat_mark_keeps_first_record_and_url_identity(self, tmp_path):
+        store = SQLiteStore(tmp_path / "records.db")
+        original = make_listing("https://example.com/1", price=10.0)
+        store.mark_seen(original)
+        changed = make_listing(original.url, price=20.0)
+        changed.id = "different-id"
+        changed.source = "different-source"
+        store.mark_seen(changed)
+        assert store.get_all() == [original]
+        assert not store.is_new(changed)
+        store.close()
+
+    def test_legacy_row_can_gain_observed_metadata(self, tmp_path):
+        import sqlite3
+
+        path = tmp_path / "legacy.db"
+        record = make_listing("https://example.com/old")
+        with sqlite3.connect(path) as conn:
+            conn.execute("CREATE TABLE seen_urls (url TEXT PRIMARY KEY)")
+            conn.execute("INSERT INTO seen_urls VALUES (?)", (record.url,))
+        store = SQLiteStore(path)
+        store.mark_seen(record)
+        assert store.get_all() == [record]
+        store.close()
+
+    def test_serialization_failure_does_not_consume_url(self, tmp_path):
+        import pytest
+
+        store = SQLiteStore(tmp_path / "records.db")
+        invalid = make_listing("https://example.com/invalid")
+        invalid.extra = {"unsupported": object()}
+        with pytest.raises(TypeError):
+            store.mark_seen(invalid)
+        assert store.is_new(invalid)
+        assert store.get_all() == []
+        store.close()
+
+
+class TestQueryScopedDeduplication:
+    def test_query_scopes_are_independent_and_survive_restart(self, tmp_path):
+        path = tmp_path / "scoped.db"
+        listing = make_listing("https://example.com/shared")
+        first = SQLiteStore(path)
+        assert first.is_new(listing, query="A")
+        assert first.is_new(listing, query="B")
+        first.mark_seen(listing, query="A")
+        assert not first.is_new(listing, query="A")
+        assert first.is_new(listing, query="B")
+        assert not first.is_new(listing)
+        first.close()
+
+        second = SQLiteStore(path)
+        assert not second.is_new(listing, query="A")
+        assert second.is_new(listing, query="B")
+        second.mark_seen(listing, query="B")
+        second.close()
+
+        third = SQLiteStore(path)
+        try:
+            assert not third.is_new(listing, query="A")
+            assert not third.is_new(listing, query="B")
+            assert third.is_new(listing, query="C")
+            assert not third.is_new(listing)
+            assert third.list_seen_urls() == [listing.url]
+            assert third.get_all() == [listing]
+        finally:
+            third.close()
+
+    def test_global_seen_does_not_invent_query_observations(self, tmp_path):
+        store = SQLiteStore(tmp_path / "scoped.db")
+        listing = make_listing("https://example.com/shared")
+        store.mark_seen(listing)
+        assert store.is_new(listing, query="A")
+        assert store.is_new(listing, query="")
+        store.mark_seen(listing, query="")
+        assert not store.is_new(listing, query="")
+        assert store.is_new(listing, query="A")
+        store.close()
+
+    def test_query_write_failure_rolls_back_global_record(self, tmp_path):
+        import sqlite3
+        import pytest
+
+        store = SQLiteStore(tmp_path / "scoped.db")
+        listing = make_listing("https://example.com/shared")
+        store._conn.execute(
+            "CREATE TRIGGER reject_scope BEFORE INSERT ON seen_queries "
+            "BEGIN SELECT RAISE(ABORT, 'query write failed'); END"
+        )
+        with pytest.raises(sqlite3.IntegrityError, match="query write failed"):
+            store.mark_seen(listing, query="A")
+        assert store.is_new(listing)
+        assert store.is_new(listing, query="A")
+        assert store.get_all() == []
+        store.close()

@@ -6,10 +6,12 @@ import bisect
 class MedianTracker:
     def __init__(self) -> None:
         self._data: dict[str, list[float]] = {}
+        self._history: dict[str, list[float]] = {}
 
     def update(self, query: str, price: float) -> None:
         prices = self._data.setdefault(query, [])
         bisect.insort(prices, price)
+        self._history.setdefault(query, []).append(price)
 
     def median(self, query: str) -> float | None:
         prices = self._data.get(query)
@@ -20,3 +22,7 @@ class MedianTracker:
         if n % 2 == 1:
             return prices[mid]
         return (prices[mid - 1] + prices[mid]) / 2
+
+    def history(self, query: str) -> list[float]:
+        """Return a copy of this process's observations in insertion order."""
+        return list(self._history.get(query, []))

@@ -23,7 +23,7 @@ class RulesEngine:
             title_lower = listing.title.lower()
 
         if cfg.keywords:
-            if not all(kw.lower() in title_lower for kw in cfg.keywords):
+            if not (any if cfg.keyword_mode == "any" else all)(kw.lower() in title_lower for kw in cfg.keywords):
                 return False
 
         if any(kw.lower() in title_lower for kw in cfg.exclude_keywords):

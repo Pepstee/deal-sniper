@@ -313,3 +313,33 @@ class TestTrackerUpdates:
         source, config, store, tracker, rules, notifier = make_components([])
         run_loop(source, config, store, tracker, rules, notifier, iterations=1)
         assert tracker.median("") is None
+
+
+def test_batch_median_is_independent_of_listing_order():
+    results = []
+    for prices in ([10, 100, 100], [100, 100, 10]):
+        source, cfg, store, tracker, rules, notifier = make_components(
+            [make_listing(str(i), price=p) for i, p in enumerate(prices)], below_median_pct=50)
+        cfg.median_mode = "batch"
+        assert run_loop(source, cfg, store, tracker, rules, notifier, iterations=1) == 1
+        results.append([item.price for item in notifier.alerted])
+        store.close()
+    assert results == [[10], [10]]
+
+
+def test_optional_observation_deduplication_handles_batch_and_repoll():
+    item = make_listing("same", price=10)
+    source, cfg, store, tracker, rules, notifier = make_components([item, item])
+    cfg.median_mode = "batch"
+    cfg.deduplicate_observations = True
+    assert run_loop(source, cfg, store, tracker, rules, notifier, iterations=3) == 1
+    assert tracker._data[""] == [10]
+    store.close()
+
+
+def test_any_keyword_mode_recovers_alternative_matching():
+    source, cfg, store, tracker, rules, notifier = make_components(
+        [make_listing("one", title="red bicycle")], keywords=["bicycle", "scooter"])
+    cfg.keyword_mode = "any"
+    assert run_loop(source, cfg, store, tracker, rules, notifier, iterations=1) == 1
+    store.close()

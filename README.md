@@ -22,16 +22,13 @@ demo failed.
 
 ---
 
-## Live marketplace access — official APIs only
+## Source access
 
-> **No scraping.** Accessing live marketplace data by scraping HTML violates the Terms of Service
-> of virtually every classified-ads platform (Craigslist, Facebook Marketplace, eBay, Gumtree,
-> etc.) and may expose you to legal risk.
->
-> To point deal-sniper at a real site, you **must** obtain official API credentials from the
-> platform and comply with all rate-limit, attribution, and data-use requirements in their
-> developer programme.  The bundled `MockHtmlSource` and `MockJsonSource` are local stubs that
-> use no live URLs and are suitable only for testing.
+Bundled fixtures support offline verification. `HttpSource` accepts an explicit
+HTTP(S) endpoint and parses the supported generic JSON or HTML listing formats.
+It is not a verified adapter for any live marketplace. Use endpoints you are
+authorised to access. The recovered Craigslist helper only constructs a URL;
+it does not fetch data or establish marketplace compatibility.
 
 ---
 
@@ -102,12 +99,6 @@ Example:
 
 ## Adding a real marketplace source
 
-> **Important — ToS and API compliance:** scraping or accessing marketplace data without
-> authorisation likely violates the platform's Terms of Service.  Before pointing deal-sniper at
-> any live marketplace, obtain official API access and comply with all applicable rate-limit,
-> attribution, and data-use requirements.  The bundled sources (`MockHtmlSource`,
-> `MockJsonSource`) exist solely for local testing and use no live URLs.
-
 Subclass the `Source` ABC defined in `deal_sniper/source.py`:
 
 ```python
@@ -166,3 +157,66 @@ class SlackNotifier(Notifier):
 
 The built-in `ConsoleNotifier` (prints to stdout) is used by default.  Swap it out by passing your
 notifier instance (or a list of notifiers) to `run_loop`.
+
+
+## Recovered capabilities
+
+Single-query invocations remain supported. For an explicit generic HTTP endpoint,
+use `--source http --url URL --format json` (or `html`). Requests have a finite
+timeout. Parsers support list/div/table HTML and JSON lists or individual records;
+malformed rows are skipped while invalid whole documents fail visibly.
+
+`Listing` retains optional source ID, timestamp and raw payload. The SQLite store
+keeps complete first-seen records alongside URL deduplication. Existing URL-only
+rows survive the additive upgrade; missing historic metadata remains unknown.
+`deal-sniper list-listings --config config.json` exports captured records as JSON.
+`MedianTracker.history(query)` returns a copy of process-local observations.
+
+Optional configuration fields are `keyword_mode` (`all`, default, or `any`),
+`median_mode` (`sequential`, default, or `batch`), and
+`deduplicate_observations` (default `false`). Batch mode evaluates listings against
+the complete poll median. Observation deduplication avoids repeatedly recording
+the same seen URL. These options retain the differing donor behaviours explicitly.
+`below_median_pct` always means a minimum discount. The old inverted
+`max_percent_below_median` rule is intentionally replaced, not silently aliased.
+
+Multiple queries share a fair scheduler with independent intervals, median
+keys and per-query URL deduplication. A rejection in one query cannot suppress a
+match in another. Global listing inspection retains the first observed record. Every query runs once per requested iteration:
+
+```json
+{
+  "db_path": "deals.db",
+  "queries": [
+    {"name": "bicycles", "source_type": "local", "source_path": "fixtures/sample.json",
+     "search_term": "bicycle", "poll_interval_sec": 300, "rules": {"max_price": 300}},
+    {"name": "cameras", "source_type": "local", "source_path": "fixtures/sample.json",
+     "search_term": "camera", "poll_interval_sec": 600, "rules": {"max_price": 200}}
+  ]
+}
+```
+
+Run it with `deal-sniper --config config.json --iterations 1`. Source search text
+and per-query rules are distinct; local fixtures are replayed as supplied.
+Interrupting polling closes the database cleanly. Notification remains console
+output or a caller-supplied notifier; migration does not activate external alerts.
+
+## Reconciliation and package boundary
+
+Compared canonical `a8fe3e8` with the three archived copies `c4cf12a`, `79d5f8f`
+and `41250bb`. Recovered useful source formats, HTTP loading, full listing metadata,
+history access, rule modes, bounded count reporting and multi-query scheduling in
+the existing owners. Old class/module names and nonworking empty-source CLI paths
+are replaced by the canonical API and executable CLI. Original Mac copies remain.
+
+`projects/edge` is a retained historical Situation Monitor fragment, not part of
+the Deal Sniper package. Its seven CLI tests fail because its CLI implementation
+is absent. It remains separately inspectable; it is neither installed nor counted
+as Deal Sniper verification. Default pytest collection is scoped to `tests`.
+Its threshold-alert helper overlaps the canonical Situation Monitor alert owner.
+No historical files were deleted or represented as a working application.
+
+The package build backend is repaired and package discovery includes only
+`deal_sniper`. Verification covers the installed CLI, local fixtures, synthetic
+SQLite restarts and loopback HTTP. It makes no live marketplace or external
+notification claim. The code graph is refreshed; document semantics remain partial.

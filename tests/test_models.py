@@ -114,3 +114,34 @@ class TestEquality:
     def test_not_equal_to_string(self):
         a = Listing(title="T", price=10.0, url="u", source="s")
         assert a != "T"
+
+
+class TestMetadataRoundTrip:
+    def test_existing_positional_arguments_keep_their_meaning(self):
+        listing = Listing("Bike", 12.5, "https://example.com/1", "test", "bikes", {"x": 1})
+        assert listing.query == "bikes"
+        assert listing.extra == {"x": 1}
+        assert listing.id is None
+        assert listing.timestamp is None
+        assert listing.raw is None
+
+    def test_iso_datetime_and_all_metadata_round_trip(self):
+        import json
+        from datetime import datetime, timezone
+
+        original = Listing(
+            "Bike", 12.5, "https://example.com/1", "test", "bikes", {"x": [1]},
+            id="item-1", timestamp=datetime(2026, 6, 1, 12, tzinfo=timezone.utc),
+            raw={"nested": {"description": "Original"}},
+        )
+        encoded = json.loads(json.dumps(original.to_dict()))
+        assert encoded["timestamp"] == "2026-06-01T12:00:00+00:00"
+        assert Listing.from_dict(encoded) == original
+
+    def test_numeric_timestamp_and_string_raw_round_trip(self):
+        listing = Listing("X", 1.0, "u", "s", timestamp=123.5, raw="<html>raw</html>")
+        assert Listing.from_dict(listing.to_dict()) == listing
+
+    def test_old_record_without_metadata_does_not_invent_timestamp(self):
+        listing = Listing.from_dict({"title": "X", "price": "1.5", "url": "u", "source": "s"})
+        assert listing == Listing("X", 1.5, "u", "s")

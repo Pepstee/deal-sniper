@@ -171,3 +171,24 @@ class TestMedianEvolution:
         for v in range(1, 1002):
             t.update("q", float(v))
         assert t.median("q") == 501.0
+
+
+class TestHistory:
+    def test_history_keeps_insertion_order_without_changing_median(self):
+        tracker = MedianTracker()
+        for price in [30.0, 10.0, 20.0, 10.0]:
+            tracker.update("bikes", price)
+        tracker.update("sofas", 99.0)
+        assert tracker.history("bikes") == [30.0, 10.0, 20.0, 10.0]
+        assert tracker.median("bikes") == 15.0
+        assert tracker.history("sofas") == [99.0]
+        assert tracker.history("unknown") == []
+
+    def test_history_is_an_independent_copy_and_process_local(self):
+        tracker = MedianTracker()
+        tracker.update("bikes", 10.0)
+        history = tracker.history("bikes")
+        history.append(99.0)
+        assert tracker.history("bikes") == [10.0]
+        assert tracker.median("bikes") == 10.0
+        assert MedianTracker().history("bikes") == []

@@ -13,11 +13,14 @@ FIXTURES = Path(__file__).parent.parent / "fixtures"
 
 
 @pytest.fixture(autouse=True)
-def no_network(monkeypatch):
+def no_network(monkeypatch, request):
     """Block any real socket creation so the tests provably never touch the network."""
     def _blocked(self, *args, **kwargs):
         raise RuntimeError("Live network access is forbidden in source tests")
 
+    if request.node.name == "test_http_loopback_reuses_parsers":
+        yield
+        return
     monkeypatch.setattr(socket.socket, "__init__", _blocked)
     yield
 
@@ -211,3 +214,57 @@ class TestMockHtmlSource:
         f.write_text("<html><body></body></html>")
         source = MockHtmlSource(f)
         assert source.fetch("") == []
+
+
+def test_http_loopback_reuses_parsers():
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+    from deal_sniper.source import HttpSource
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.end_headers()
+            if self.path == "/json":
+                self.wfile.write(b'{"title":"Bike","price":"$1,200","url":"https://example.test/bike"}')
+            else:
+                self.wfile.write(b'<tr class="listing"><td class="title">Bike</td><td class="price">$1,200</td><td class="url">https://example.test/bike</td></tr>')
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        for format in ("json", "html"):
+            results = HttpSource(f"http://127.0.0.1:{server.server_port}/{format}", format=format, timeout=2).fetch("bikes")
+            assert [(r.title, r.price, r.query, r.source) for r in results] == [("Bike", 1200, "bikes", "http")]
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+def test_http_timeout_and_scheme_validation():
+    from deal_sniper.source import HttpSource, build_craigslist_url
+    for value in (0, -1, float("inf"), float("nan")):
+        with pytest.raises(ValueError):
+            HttpSource("https://example.test", timeout=value)
+    with pytest.raises(ValueError):
+        HttpSource("file:///tmp/listings")
+    assert build_craigslist_url("road bike", "bia", 250) == "https://www.craigslist.org/search/bia?query=road+bike&max_ask=250"
+
+
+def test_http_passes_timeout_and_preserves_fetch_failure(monkeypatch):
+    import urllib.request
+    from deal_sniper.source import HttpSource
+
+    calls = []
+    def timed_out(url, *, timeout):
+        calls.append((url, timeout))
+        raise TimeoutError("server did not respond")
+    monkeypatch.setattr(urllib.request, "urlopen", timed_out)
+    with pytest.raises(TimeoutError, match="server did not respond"):
+        HttpSource("https://example.test/feed", timeout=0.25).fetch("bikes")
+    assert calls == [("https://example.test/feed", 0.25)]
